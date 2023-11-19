@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Port page</title>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	</head>
+	<body>
+		<p>
+			{% if session.get('port') == None %}Нет подключения к COM порту!
+			{% else %}Порт {{ session.get('port') }} подключен!{% endif %}
+		</p>
+		<form method="post" name="form" id="mform">
+			<label for="var">Measure variable</label><br>
+			<select name="var" id="var">
+				<option value="VOLT">Voltage</option>
+				<option value="CURR">Current</option>
+				<option value="TEMP">Temperature</option>
+				<option value="FREQ">Frequency</option>
+			</select>
+			<input type="button" id="btnMode" value="Сменить режим">
+			<br>
+			<label for="time">Time interval (in seconds)</label><br>
+			<input type="text" id="time" name="time"> <br>
+			<label for="dur">Duration (in seconds)</label><br>
+			<input type="text" id="dur" name="dur"> <br>
+			<input type="button" value="Начать" id="btnSubmit">
+		</form> <br>
+		<img alt="No data for graph" src="" id="gimage">
+		<script>
+		$(document).ready(function () {
+            $("#btnSubmit").click(function (event) {
+	              $("#gimage").attr("src", "")
+	              var formData = {
+			          var: $('#var').val(),
+			          time: $("#time").val(),
+			          dur: $("#dur").val(),
+			      };
+			      $.ajax({
+				      type: "POST",
+				      datatype: "json",
+				      contentType: "application/json; charset=utf-8",
+				      encode: true,
+			          url: "{{ url_for('make_eval') }}",
+			          data: JSON.stringify(formData),
+				      success: function(response) {
+                          $("#gimage").attr("src", response.image);
+				      }
+			      });
+                  event.preventDefault();
+	            });
+            $("#btnMode").click(function () {
+	              var formData = {
+			          mode: $('#var').val(),
+			      };
+			      $.ajax({
+				      type: "POST",
+				      datatype: "json",
+				      contentType: "application/json; charset=utf-8",
+				      encode: true,
+			          url: "{{ url_for('changeMode') }}",
+			          data: JSON.stringify(formData),
+			      });
+	            });
+        });
+	</script>
+	</body>
+</html>

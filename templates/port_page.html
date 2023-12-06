@@ -3,51 +3,133 @@
 	<head>
 		<meta charset="UTF-8">
 		<title>Port page</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 	</head>
 	<body>
-		<p>
-			{% if session.get('port') == None %}Нет подключения к COM порту!
-			{% else %}Порт {{ session.get('port') }} подключен!{% endif %}
-		</p>
+	<div id="main_panel" align="center">
+		{% if session.get('port') == None %}
+			<p class="red">Нет подключения к COM порту!</p>
+		{% else %}
+			<p class="green">Порт {{ session.get('port') }} подключен!</p>
+		{% endif %}
 		<form method="post" name="form" id="mform">
-			<label for="var">Measure variable</label><br>
-			<select name="var" id="var">
-				<option value="VOLT">Voltage</option>
-				<option value="CURR">Current</option>
-				<option value="TEMP">Temperature</option>
-				<option value="FREQ">Frequency</option>
-			</select>
-			<input type="button" id="btnMode" value="Сменить режим">
+			<div class="form-group">
+				<label for="meas" class="col-form-label col-sm-4">Current measures:</label><br>
+				<input type="text" id="meas" name="meas" readonly class="form-control-lg col"><br>
+				<div class="form-group row">
+					<input type="button" id="btnMeasStart" value="Start"
+					       class="form-control btn btn-outline-success btn-sm col"><input type="button" id="btnMeasStop" value="Stop" class="form-control btn btn-outline-danger btn-sm col">
+				</div>
+			</div>
 			<br>
-			<label for="time">Time interval (in seconds)</label><br>
-			<input type="text" id="time" name="time"> <br>
-			<label for="dur">Duration (in seconds)</label><br>
-			<input type="text" id="dur" name="dur"> <br>
-			<input type="button" value="Начать" id="btnSubmit">
+			<div class="form-group row">
+				<label for="var" class="col-form-label col-sm-4">Measure variable: </label>
+				<select name="var" id="var" class="form-control col">
+					<option value="VOLT">Voltage</option>
+					<option value="CURR">Current</option>
+					<option value="RES">Resistance</option>
+					<option value="CAP">Capacity</option>
+					<option value="TEMP">Temperature</option>
+					<option value="FREQ">Frequency</option>
+					<option value="PER">Period</option>
+				</select>
+				<input type="button" id="btnMode" value="Change mode" class="form-control btn btn-primary btn-sm col">
+			</div>
+			<br>
+			<div class="form-group row">
+				<label for="varMode" class="col-form-label col-sm-4">Variable mode: </label><br>
+				<select name="varMode" id="varMode" class="form-control col"></select>
+				<input type="button" id="btnVarMode" class="form-control btn btn-primary btn-sm col" value="Change variable mode">
+			</div>
+			<br>
+			<div class="form-group">
+				<div class="form-group row">
+					<label for="time" class="col-form-label col-sm-6">Time interval (in seconds)</label><br>
+					<input type="text" id="time" name="time" class="form-control col"> <br>
+				</div>
+				<div class="form-group row">
+					<label for="dur" class="col-form-label col-sm-6">Duration (in seconds)</label><br>
+					<input type="text" id="dur" name="dur" class="form-control col"> <br>
+				</div>
+				<div class="form-group row">
+					<label for="low_int" class="col-form-label col-sm-6">Minimum interval value</label><br>
+					<input type="text" id="low_int" name="low_int" class="form-control col" value="0"> <br>
+				</div>
+				<div class="form-group row">
+					<label for="high_int" class="col-form-label col-sm-6">Maximum interval value</label><br>
+					<input type="text" id="high_int" name="high_int" class="form-control col"> <br>
+				</div>
+				<br>
+				<input type="button" value="Начать" id="btnSubmit" class="btn btn-success">
+			</div>
 		</form> <br>
-		<img alt="No data for graph" src="" id="gimage">
+	</div>
+		<div id="graph" align="center">
+			<img alt="No data for graph" src="" id="gimage">
+		</div>
 		<script>
 		$(document).ready(function () {
+            var currMeasStatus;
+            let gr_t;
             $("#btnSubmit").click(function (event) {
 	              $("#gimage").attr("src", "")
-	              var formData = {
-			          var: $('#var').val(),
-			          time: $("#time").val(),
-			          dur: $("#dur").val(),
-			      };
-			      $.ajax({
-				      type: "POST",
-				      datatype: "json",
-				      contentType: "application/json; charset=utf-8",
-				      encode: true,
-			          url: "{{ url_for('make_eval') }}",
-			          data: JSON.stringify(formData),
-				      success: function(response) {
-                          $("#gimage").attr("src", response.image);
-				      }
-			      });
-                  event.preventDefault();
+	              clearTimeout(currMeasStatus)
+	              let time = parseFloat($("#time").val());
+                  let dur = parseFloat($("#dur").val());
+                  let path = "";
+	              let i = 0;
+                  function getGraph() {
+                      let formData = {
+				          var: $('#var').val(),
+				          time: i,
+			              mode: $("#varMode").val(),
+	                      path: path,
+	                      dur: dur,
+	                      low_int: $("#low_int").val(),
+	                      high_int: $("#high_int").val()
+                      };
+                      $.ajax({
+                          type: "POST",
+                          datatype: "json",
+                          contentType: "application/json; charset=utf-8",
+                          encode: true,
+                          url: "{{ url_for('make_eval') }}",
+                          data: JSON.stringify(formData),
+                          success: function (response) {
+                              i += time
+	                          $("#gimage").remove();
+                              $("#graph").html("<img src='' id='gimage'>");
+                              $("#gimage").attr('src', response.image + '?' + new Date().getTime());
+                              path = response.path;
+                          }
+                      });
+                      event.preventDefault();
+                      gr_t = setTimeout(getGraph, 1000*time);
+                      if (i >= dur) {
+                        clearTimeout(gr_t);
+                      }
+                  }
+                  getGraph()
+	            });
+            $("#btnMeasStart").click(function () {
+                  function makeMeas() {
+                      $.ajax({
+                          type: "POST",
+                          datatype: "json",
+                          contentType: "application/json; charset=utf-8",
+                          encode: true,
+                          url: "{{ url_for('make_single_eval') }}",
+                          success: function (response) {
+                              $("#meas").attr("value", response.msg);
+                          }
+                      });
+	                  currMeasStatus = setTimeout(makeMeas, 2000)
+                  }
+                  makeMeas()
+	            });
+            $("#btnMeasStop").click(function () {
+	            clearTimeout(currMeasStatus)
 	            });
             $("#btnMode").click(function () {
 	              var formData = {
@@ -60,9 +142,107 @@
 				      encode: true,
 			          url: "{{ url_for('changeMode') }}",
 			          data: JSON.stringify(formData),
+				      success: function() {
+                          modeSel = $("#varMode")
+					      if (formData.mode === "VOLT") {
+                              modeSel.html(
+                                  "<option value='DC AUTO'>DC Auto</option>" +
+	                              "<option value='DC 50E-3'>DC 50mV</option>" +
+	                              "<option value='DC 500E-3'>DC 500mV</option>" +
+	                              "<option value='DC 5'>DC 5V</option>" +
+	                              "<option value='DC 50'>DC 50V</option>" +
+	                              "<option value='DC 500'>DC 500V</option>" +
+	                              "<option value='DC 1000'>DC 1000V</option>" +
+	                              "<option value='AC AUTO'>AC Auto</option>" +
+	                              "<option value='AC 500E-3'>AC 500mV</option>" +
+	                              "<option value='AC 5'>AC 5V</option>" +
+	                              "<option value='AC 50'>AC 50V</option>" +
+	                              "<option value='AC 500'>AC 500V</option>" +
+	                              "<option value='AC 750'>AC 750V</option>")
+					      }
+                          else if ($('#var').val() === "CURR") {
+                              modeSel.html(
+                                  "<option value='DC AUTO'>DC Auto</option>" +
+	                              "<option value='DC 500E-6'>DC 500microA</option>" +
+	                              "<option value='DC 5E-3'>DC 5mA</option>" +
+	                              "<option value='DC 50E-3'>DC 50mA</option>" +
+	                              "<option value='DC 500E-3'>DC 500mA</option>" +
+	                              "<option value='DC 5'>DC 5A</option>" +
+	                              "<option value='DC 10'>DC 10A</option>" +
+	                              "<option value='AC AUTO'>AC Auto</option>" +
+	                              "<option value='AC 500E-6'>AC 500microA</option>" +
+	                              "<option value='AC 5E-3'>AC 5mA</option>" +
+	                              "<option value='AC 50E-3'>AC 50mA</option>" +
+	                              "<option value='AC 500E-3'>AC 500mA</option>" +
+	                              "<option value='AC 5'>AC 5A</option>" +
+	                              "<option value='AC 10'>AC 10A</option>")
+					      }
+                          else if ($('#var').val() === "TEMP") {
+                              modeSel.html(
+                                  "<option value='RTD:UNIT C'>Celsius</option>" +
+	                              "<option value='RTD:UNIT F'>Fahrenheit</option>" +
+	                              "<option value='RTD:UNIT K'>Kelvin</option>")
+					      }
+                          else if ($('#var').val() === "RES") {
+                              modeSel.html(
+                                  "<option value='AUTO'>Auto</option>" +
+	                              "<option value='500'>500Ω</option>" +
+	                              "<option value='5E3'>5KΩ</option>" +
+	                              "<option value='50E3'>50KΩ</option>" +
+	                              "<option value='500E3'>500KΩ</option>" +
+	                              "<option value='5E6'>5MΩ</option>" +
+	                              "<option value='50E6'>50MΩ</option>")
+					      }
+				      }
 			      });
+	            });
+            $("#btnVarMode").click(function () {
+	              var formData = {
+                      mode: $('#var').val(),
+			          varMode: $('#varMode').val(),
+			      };
+			      $.ajax({
+				      type: "POST",
+				      datatype: "json",
+				      contentType: "application/json; charset=utf-8",
+				      encode: true,
+			          url: "{{ url_for('changeVarMode') }}",
+			          data: JSON.stringify(formData),
+				      });
 	            });
         });
 	</script>
+
+	<style>
+		.red {
+			color: red;
+		}
+		.green {
+			color: green;
+		}
+		#meas {
+			text-align: center;
+			width: 440px;
+			height: 100px;
+			margin-top: 0;
+		}
+		#main_panel {
+			margin: 0 auto;
+			padding-left: 5px;
+			padding-right: 20px;
+			padding-top: 5px;
+			border: black solid;
+			width: 500px;
+		}
+		input {
+			margin-left: 20px;
+			margin-top: 10px;
+			margin-bottom: 10px;
+		}
+		.btn-primary {
+			height: 40px;
+		}
+	</style>
+
 	</body>
 </html>

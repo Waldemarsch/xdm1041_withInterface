@@ -1,10 +1,11 @@
+import sys
 from flask import Flask, render_template, request, session
-import json
-
+import webview
+import threading
 import xdm
 from xdm import *
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='./static', template_folder='./templates')
 app.secret_key = "ya pidoras"
 
 
@@ -73,3 +74,18 @@ def make_eval():
         ser.close()
         print(f'..{path_graph[1:]}')
         return {'image': path_graph[1:], 'path': path}
+
+
+def start_server():
+    host = 'localhost'
+    port = 5000
+    app.run(host=host, port=port)
+
+
+if __name__ == '__main__':
+    t = threading.Thread(target=start_server)
+    t.setDaemon(True)
+    t.start()
+    webview.create_window('Xdm', app)
+    webview.start()
+    sys.exit()

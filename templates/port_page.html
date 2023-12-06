@@ -128,8 +128,6 @@
                           data: JSON.stringify(formData),
                           success: function (response) {
                               i += time
-	                          $("#gimage").remove();
-                              $("#graph").html("<img src='' id='gimage'>");
                               $("#gimage").attr('src', response.image + '?' + new Date().getTime());
                               path = response.path;
                           }

@@ -1,11 +1,13 @@
 import sys
+
+import flask
 from flask import Flask, render_template, request, session
 import webview
 import threading
 import xdm
 from xdm import *
 
-app = Flask(__name__, static_folder='./static', template_folder='./templates')
+app = Flask(__name__, static_folder='../static', template_folder='./templates')
 app.secret_key = "ya pidoras"
 
 
@@ -72,8 +74,9 @@ def make_eval():
         ser = serial.Serial(session.get('port'), 115200)
         path, path_graph = xdm.make_eval_with_graph(ser, var, time_v, path, mode, low_int, high_int, dur)
         ser.close()
-        print(f'..{path_graph[1:]}')
-        return {'image': path_graph[1:], 'path': path}
+        filename = f'{path_graph[9:]}'
+        print(flask.url_for('static', filename=filename))
+        return {'image': flask.url_for('static', filename=filename), 'path': path}
 
 
 def start_server():
